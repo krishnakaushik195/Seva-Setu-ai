@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+{% if state == "expired" %}
+<h2>This link has expired</h2>
+<p style="font-size:18px">{{ problem }}</p>
+{% elif state == "done" %}
+<h2>Document received</h2>
+<p style="font-size:18px">The age-proof document has been attached{% if first_name %} to {{ first_name }}'s pension application{% endif %}.</p>
+<p style="font-size:18px">Go back to the assistant and tell it the document is uploaded.</p>
+{% else %}
+<h2>Upload the age-proof document</h2>
+<p style="font-size:18px">For the Old Age Pension application{% if first_name %} of <b>{{ first_name }}</b>{% endif %}.</p>
+<p style="font-size:16px">Take a clear photo of <b>one</b> of these: Birth certificate, School leaving certificate or Voter ID.
+The name and date of birth must be easy to read. Put the document on a flat surface in good light.</p>
+{% if problem %}<div class="flash">{{ problem[0]|upper }}{{ problem[1:] }}.</div>{% endif %}
+<form method="post" enctype="multipart/form-data">
+  <p><input type="file" name="document" accept="image/*,application/pdf" style="font-size:18px"></p>
+  <p><button class="btn" type="submit" style="font-size:20px;padding:14px 32px">Upload</button></p>
+</form>
+<p class="note">JPG, PNG or PDF, up to 5 MB. This link works once and expires 30 minutes after the assistant made it.</p>
+{% endif %}
+{% endblock %}

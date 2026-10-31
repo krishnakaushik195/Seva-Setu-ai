@@ -1,0 +1,19 @@
+{$SITE_ADDRESS::8000} {
+	encode gzip
+
+	handle /mcp/citizen* {
+		reverse_proxy mcp-citizen:8100
+	}
+	handle /.well-known/oauth-protected-resource/mcp/citizen* {
+		reverse_proxy mcp-citizen:8100
+	}
+	handle /mcp/officer* {
+		reverse_proxy mcp-officer:8100
+	}
+	handle /.well-known/oauth-protected-resource/mcp/officer* {
+		reverse_proxy mcp-officer:8100
+	}
+	handle {
+		reverse_proxy app:8000
+	}
+}

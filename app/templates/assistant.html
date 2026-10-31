@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Use Sewa Setu with an AI assistant</h2>
+<p>An AI assistant that supports the Model Context Protocol (MCP), such as Claude or ChatGPT, can help a citizen
+apply for the Old Age Pension and follow it up through this official channel. The portal keeps the official
+record and applies exactly the same rules as the counter and the website.</p>
+
+<h3>For citizens, families and CSC operators</h3>
+<p>Add this connector (server URL) to the assistant:</p>
+<pre style="background:#f4f4f4;padding:10px;border:1px solid #ccd">{{ citizen_url }}</pre>
+<ul class="note">
+  <li>When the assistant connects, Sewa Setu asks for the applicant's mobile number and an OTP <b>on this
+  website</b>. The assistant never sees the OTP. The verified mobile number becomes the application's contact number.</li>
+  <li>The assistant asks for the details, gives a link to photograph the age-proof document on the phone,
+  reads everything back, and files the application only after the applicant says yes.</li>
+  <li>Applying through an assistant is being piloted in: <b>{{ pilot|join(', ') }}</b>.
+  Anyone can check the status of an application.</li>
+</ul>
+
+<h3>For block officers</h3>
+<pre style="background:#f4f4f4;padding:10px;border:1px solid #ccd">{{ officer_url }}</pre>
+<p class="note">Sign in with your departmental login. Your assistant sees the pending cases of your blocks,
+most urgent first, opens a case with automatic checks, shows the age-proof document, and records your decision
+under your name with your reason. It cannot approve an application that breaks a scheme rule, and it decides
+one case at a time.</p>
+
+<h3>Privacy and shared phones</h3>
+<p class="note">Details shared in a conversation are seen by the assistant and the company that runs it. A sign-in
+lasts at most 2 hours for a citizen. On a shared phone or kiosk, ask the assistant to sign out when you finish,
+or end the sign-in from the status portal under <b>Connected applications</b>.</p>
+{% endblock %}
