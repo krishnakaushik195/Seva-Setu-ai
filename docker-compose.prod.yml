@@ -1,0 +1,7 @@
+# On a server with a domain pointing at it: SITE_ADDRESS=<domain> and PUBLIC_BASE_URL=https://<domain> in .env, then
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+services:
+  proxy:
+    ports:
+      - "80:80"
+      - "443:443"

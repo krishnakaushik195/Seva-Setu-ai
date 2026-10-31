@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+.container{max-width:1100px}
+.pass{color:#1b7e3c;font-weight:bold}.fail{color:#a33;font-weight:bold}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:12px}
+.card{border:1px solid #d7dbe0;padding:12px;background:#fafbfc;font-size:13px}
+.card h4{margin:0 0 6px;color:#0b3d6e}
+.tag{display:inline-block;background:#e8eef5;color:#0b3d6e;padding:1px 7px;margin:1px;font-size:12px}
+.chat{font-size:13px;border-left:3px solid #ccd;padding-left:10px;margin:6px 0}
+.chat .citizen{background:#fff7e8;padding:6px;margin:4px 0}
+.chat .assistant{background:#eef5ff;padding:6px;margin:4px 0}
+.chat .tool{background:#f2f2f2;padding:6px;margin:4px 0;font-family:monospace;font-size:12px;white-space:pre-wrap;word-break:break-word}
+details summary{cursor:pointer;color:#0b3d6e}
+</style>
+<h2>{{ meta.title or "Evaluations" }}</h2>
+{% if meta.intro %}<p>{{ meta.intro }}</p>{% endif %}
+{% if meta.how %}
+<h3>How these evals run</h3>
+<ol class="note">{% for step in meta.how %}<li>{{ step }}</li>{% endfor %}</ol>
+{% endif %}
+
+<h3>Runs</h3>
+{% if runs %}
+<table class="tbl">
+<tr><th>Run</th><th>When</th><th>Assistant model</th><th>What changed before this run</th><th>Passed</th></tr>
+{% for r in runs %}
+<tr><td><a href="?run={{ r.run_id }}">{{ r.run_id }}</a>{% if run and r.run_id == run.run_id %} (shown){% endif %}</td>
+<td>{{ r.started_at }}</td><td>{{ r.assistant_model }}</td><td>{{ r.label }}</td>
+<td class="{{ 'pass' if r.passed == r.total else 'fail' }}">{{ r.passed }} / {{ r.total }}</td></tr>
+{% endfor %}
+</table>
+{% else %}
+<p class="note">No eval run has been recorded yet.</p>
+{% endif %}
+
+{% if meta.changes %}
+<h3>What the evals found, and what changed because of them</h3>
+<table class="tbl">
+<tr><th>Found in</th><th>What we saw</th><th>What we changed</th></tr>
+{% for c in meta.changes %}<tr><td>{{ c.run }}</td><td>{{ c.found }}</td><td>{{ c.changed }}</td></tr>{% endfor %}
+</table>
+{% endif %}
+
+{% if meta.personas %}
+<h3>The people</h3>
+<div class="cards">
+{% for p in meta.personas %}
+<div class="card">
+  <h4>{{ p.name }}{% if p.age %}, {{ p.age }}{% endif %}</h4>
+  <div>{% if p.village %}<span class="tag">{{ p.village }}</span>{% endif %}{% if p.block %}<span class="tag">{{ p.block }} block</span>{% endif %}{% if p.channel %}<span class="tag">{{ p.channel }}</span>{% endif %}</div>
+  {% if p.who %}<p>{{ p.who }}</p>{% endif %}
+  {% if p.talks %}<p><b>How they talk:</b> {{ p.talks }}</p>{% endif %}
+  {% if p.wants %}<p><b>Wants:</b> {{ p.wants }}</p>{% endif %}
+  {% if p.why %}<p><b>Why this person:</b> {{ p.why }}</p>{% endif %}
+  {% if p.must_be_true %}<p><b>Must be true in the portal afterwards:</b></p><ul>{% for m in p.must_be_true %}<li>{{ m }}</li>{% endfor %}</ul>{% endif %}
+</div>
+{% endfor %}
+</div>
+{% endif %}
+
+{% if run %}
+<h3>Run {{ run.run_id }}: {{ run.passed }} of {{ run.total }} passed</h3>
+<p class="note">{{ run.client }} &middot; assistant: {{ run.assistant_model }} &middot; citizen/officer played by: {{ run.persona_model }}{% if run.git_commit %} &middot; code: {{ run.git_commit }}{% endif %}</p>
+<table class="tbl">
+<tr><th>Person</th><th>Result</th><th>Checks against the database</th><th>Turns</th></tr>
+{% for res in run.results %}
+<tr><td><a href="#{{ res.persona_id }}">{{ res.persona_name }}</a></td>
+<td class="{{ 'pass' if res.passed else 'fail' }}">{{ 'PASS' if res.passed else 'FAIL' }}</td>
+<td>{% for c in res.checks %}<div class="{{ 'pass' if c.passed else 'fail' }}" style="font-weight:normal">{{ '&#10003;'|safe if c.passed else '&#10007;'|safe }} {{ c.check }}{% if c.detail and not c.passed %} <span class="note">({{ c.detail }})</span>{% endif %}</div>{% endfor %}</td>
+<td>{{ res.turns }}</td></tr>
+{% endfor %}
+</table>
+
+<h3>Conversations</h3>
+{% for res in run.results %}
+<details id="{{ res.persona_id }}">
+<summary><b>{{ res.persona_name }}</b> &mdash; <span class="{{ 'pass' if res.passed else 'fail' }}">{{ 'PASS' if res.passed else 'FAIL' }}</span></summary>
+<div class="chat">
+{% for m in res.transcript %}
+  {% if m.who == 'tool' %}<div class="tool">&#8594; {{ m.tool }}({{ m.args }})
+&#8592; {{ m.result }}</div>
+  {% else %}<div class="{{ m.who }}"><b>{{ m.label or m.who|capitalize }}:</b> {{ m.text }}</div>{% endif %}
+{% endfor %}
+{% if res.db_after %}<div class="tool">Database afterwards: {{ res.db_after }}</div>{% endif %}
+</div>
+</details>
+{% endfor %}
+{% endif %}
+{% endblock %}

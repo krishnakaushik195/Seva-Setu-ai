@@ -1,0 +1,12 @@
+{
+  "servers": {
+    "sewasetu-citizen": {
+      "type": "http",
+      "url": "http://localhost:8000/mcp/citizen"
+    },
+    "sewasetu-officer": {
+      "type": "http",
+      "url": "http://localhost:8000/mcp/officer"
+    }
+  }
+}

@@ -1,0 +1,107 @@
+x-portal-env: &portal-env
+  # The portal keeps Indian time; without this the containers stamp records in UTC.
+  TZ: Asia/Kolkata
+  SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env (see .env.example)}
+  ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+  ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env (see .env.example)}
+  ADMIN_FULL_NAME: ${ADMIN_FULL_NAME:-District Social Welfare Officer}
+  # the address at which people reach this portal; stamped into sign-in tokens and
+  # discovery documents, so it must be the public one when deployed
+  PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8000}
+  SCHEME_DEADLINE: ${SCHEME_DEADLINE:-2026-12-31 23:59}
+  AGENT_PILOT_BLOCKS: ${AGENT_PILOT_BLOCKS:-Sonari,Rajapara,Dhemaji Pathar,Namti}
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: sewasetu
+      POSTGRES_USER: sewasetu
+      POSTGRES_PASSWORD: sewasetu123
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./app/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./seed/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+
+  app:
+    build: ./app
+    # bring the schema up to date (idempotent), then serve
+    command: ["sh", "-c", "until python migrate.py; do sleep 3; done; exec gunicorn --bind 0.0.0.0:8000 --workers 4 --timeout 30 app:app"]
+    expose:
+      - "8000"
+    environment: *portal-env
+    depends_on:
+      - db
+      - smsgw
+    volumes:
+      - uploads:/var/sewasetu/uploads
+      - applogs:/var/log/sewasetu
+      - ./evals/results:/var/sewasetu/evals:ro
+
+  # Two MCP servers, separate processes and endpoints: a citizen's assistant never sees officer tools.
+  mcp-citizen:
+    build: ./app
+    command: ["uvicorn", "mcp_server:asgi", "--host", "0.0.0.0", "--port", "8100", "--workers", "2", "--proxy-headers", "--forwarded-allow-ips", "*"]
+    environment:
+      <<: *portal-env
+      MCP_ROLE: citizen
+    depends_on:
+      - app
+    volumes:
+      - uploads:/var/sewasetu/uploads
+      - applogs:/var/log/sewasetu
+
+  mcp-officer:
+    build: ./app
+    command: ["uvicorn", "mcp_server:asgi", "--host", "0.0.0.0", "--port", "8100", "--workers", "2", "--proxy-headers", "--forwarded-allow-ips", "*"]
+    environment:
+      <<: *portal-env
+      MCP_ROLE: officer
+    depends_on:
+      - app
+    volumes:
+      - uploads:/var/sewasetu/uploads
+      - applogs:/var/log/sewasetu
+
+  scheduler:
+    build: ./app
+    # Run the deemed-approval job once at startup (so a freshly restored
+    # database is brought up to date), then hand over to cron for the nightly run.
+    command: ["sh", "-c", "until python /app/scripts/deemed_approval.py; do sleep 5; done; exec cron -f"]
+    environment:
+      TZ: Asia/Kolkata
+    depends_on:
+      - db
+    volumes:
+      - applogs:/var/log/sewasetu
+
+  smsgw:
+    build: ./smsgw
+    # internal only — reached by the app over the docker network and exposed to
+    # users via the app at /__gateway/ (so no second host port is needed)
+    expose:
+      - "8025"
+
+  # One public address: /mcp/citizen and /mcp/officer go to the MCP servers, everything else to the portal.
+  # SITE_ADDRESS is :8000 locally; set it to the domain on a server and Caddy obtains HTTPS certificates.
+  proxy:
+    image: caddy:2
+    ports:
+      - "8000:8000"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:8000}
+    volumes:
+      - ./proxy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+      - mcp-citizen
+      - mcp-officer
+
+volumes:
+  pgdata:
+  uploads:
+  applogs:
+  caddy_data:
+  caddy_config:
